@@ -102,7 +102,7 @@ public class StandardRegimenElement1_10Test extends BaseModuleContextSensitiveTe
 			public void setupRequest(MockHttpServletRequest request, Map<String, String> widgets) {
 				request.addParameter(widgets.get("Date:"), dateAsString(date));
 				request.addParameter(widgets.get("Location:"), "2");
-				request.addParameter(widgets.get("Provider:"), "502");
+				request.addParameter(widgets.get("Provider:"), "1");
 				//w7 is the standardRegimen tag
 				request.addParameter("w7", "all3");
 				//start date

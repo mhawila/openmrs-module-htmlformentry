@@ -75,7 +75,7 @@ protected final Log log = LogFactory.getLog(getClass());
 			public void setupRequest(MockHttpServletRequest request, Map<String, String> widgets) {
 				request.setParameter(widgets.get("Date:"), dateAsString(date));
 				request.setParameter(widgets.get("Location:"), "2");
-				request.setParameter(widgets.get("Provider:"), "502");
+				request.setParameter(widgets.get("Provider:"), "1");
 				//drug
 				request.setParameter("w7", "2");
 				//start date
@@ -207,7 +207,7 @@ protected final Log log = LogFactory.getLog(getClass());
 			public void setupRequest(MockHttpServletRequest request, Map<String, String> widgets) {
 				request.setParameter(widgets.get("Date:"), dateAsString(date));
 				request.setParameter(widgets.get("Location:"), "2");
-				request.setParameter(widgets.get("Provider:"), "502");
+				request.setParameter(widgets.get("Provider:"), "1");
 				//drug
 				request.setParameter("w7", "2");
 				//start date
@@ -286,16 +286,16 @@ protected final Log log = LogFactory.getLog(getClass());
 		
         //Test viewing edited drug order
 		new RegressionTestHelper() {
-			
+
 			@Override
 			public String getFormName() {
 				return "drugOrderTestForm";
 			}
-			
+
 			public Encounter getEncounterToView() {
 				return createAndEditEncounterTest.getEncounterToEdit();
 			}
-			
+
 			public void testViewingEncounter(Encounter encounter, String html) {
 				assertThat(html, containsString("DrugOrder.dose <span class=\"value\">2</span>"));
 			}
@@ -338,7 +338,7 @@ protected final Log log = LogFactory.getLog(getClass());
 			public void setupRequest(MockHttpServletRequest request, Map<String, String> widgets) {
 				request.setParameter(widgets.get("Date:"), dateAsString(date));
 				request.setParameter(widgets.get("Location:"), "2");
-				request.setParameter(widgets.get("Provider:"), "502");
+				request.setParameter(widgets.get("Provider:"), "1");
 				//drug
 				request.setParameter("w7", "2");
 				//start date

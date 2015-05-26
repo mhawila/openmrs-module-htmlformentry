@@ -1,12 +1,8 @@
 package org.openmrs.module.htmlformentry.element;
 
 import org.apache.commons.beanutils.PropertyUtils;
-import org.openmrs.Encounter;
-import org.openmrs.EncounterType;
-import org.openmrs.Location;
-import org.openmrs.LocationTag;
-import org.openmrs.Person;
-import org.openmrs.Role;
+import org.openmrs.*;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.htmlformentry.FormEntryContext;
 import org.openmrs.module.htmlformentry.FormEntryContext.Mode;
@@ -16,19 +12,10 @@ import org.openmrs.module.htmlformentry.HtmlFormEntryService;
 import org.openmrs.module.htmlformentry.HtmlFormEntryUtil;
 import org.openmrs.module.htmlformentry.action.FormSubmissionControllerAction;
 import org.openmrs.module.htmlformentry.comparator.OptionComparator;
-import org.openmrs.module.htmlformentry.widget.AutocompleteWidget;
-import org.openmrs.module.htmlformentry.widget.CheckboxWidget;
-import org.openmrs.module.htmlformentry.widget.DateWidget;
-import org.openmrs.module.htmlformentry.widget.DropdownWidget;
-import org.openmrs.module.htmlformentry.widget.EncounterTypeWidget;
-import org.openmrs.module.htmlformentry.widget.ErrorWidget;
-import org.openmrs.module.htmlformentry.widget.Option;
-import org.openmrs.module.htmlformentry.widget.SingleOptionWidget;
-import org.openmrs.module.htmlformentry.widget.TimeWidget;
-import org.openmrs.module.htmlformentry.widget.ToggleWidget;
-import org.openmrs.module.htmlformentry.widget.Widget;
+import org.openmrs.module.htmlformentry.widget.*;
 import org.openmrs.util.OpenmrsConstants;
 import org.openmrs.util.OpenmrsUtil;
+import org.openmrs.web.WebConstants;
 import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -59,7 +46,7 @@ public class EncounterDetailSubmissionElement implements HtmlGeneratorElement, F
 
     private ErrorWidget timeErrorWidget;
 
-    private SingleOptionWidget providerWidget;
+    private Widget providerWidget;
 
     private ErrorWidget providerErrorWidget;
 
@@ -130,143 +117,21 @@ public class EncounterDetailSubmissionElement implements HtmlGeneratorElement, F
         if (Boolean.TRUE.equals(parameters.get("provider"))) {
 
             if ("autocomplete".equals(parameters.get("type"))) {
-                providerWidget = new AutocompleteWidget(Person.class);
+                providerWidget = new ProviderSearchAutoCompleteWidget();
             }else{
                 providerWidget = new DropdownWidget();
             }
             providerErrorWidget = new ErrorWidget();
 
-            List<Option> providerOptions = new ArrayList<Option>();
-            // If specific persons are specified, display only those persons in order
-            String personsParam = (String) parameters.get("persons");
-            if (personsParam != null) {
-                for (String s : personsParam.split(",")) {
-                    Person p = HtmlFormEntryUtil.getPerson(s);
-                    if (p == null) {
-                        throw new RuntimeException("Cannot find Person: " + s);
-                    }
-                    String label = p.getPersonName().getFullName();
-                    providerOptions.add(new Option(label, p.getId().toString(), false));
-                }
-                removeNonProviders(providerOptions);
-            }
-
-            // Only if specific person ids are not passed in do we get by user Role
-            if (providerOptions.isEmpty()) {
-
-                List<PersonStub> users = new ArrayList<PersonStub>();
-                List<Option> providerUsers = new ArrayList<Option>();
-
-                // If the "role" attribute is passed in, limit to users with this role
-                if (parameters.get("role") != null) {
-                    Role role = Context.getUserService().getRole((String) parameters.get("role"));
-                    if (role == null) {
-                        throw new RuntimeException("Cannot find role: " + parameters.get("role"));
-                    } else {
-                        users = Context.getService(HtmlFormEntryService.class).getUsersAsPersonStubs(role.getRole());
-                    }
-                }
-
-                // Otherwise, use default options appropriate to the underlying OpenMRS version
-                else {
-                    if (openmrsVersionDoesNotSupportProviders()) {
-                        // limit to users with the default OpenMRS PROVIDER role,
-                        String defaultRole = OpenmrsConstants.PROVIDER_ROLE;
-                        Role role = Context.getUserService().getRole(defaultRole);
-                        if (role != null) {
-                            users = Context.getService(HtmlFormEntryService.class).getUsersAsPersonStubs(role.getRole());
-                        }
-                        // If this role isn't used, default to all Users
-                        if (users.isEmpty()) {
-                            users = Context.getService(HtmlFormEntryService.class).getUsersAsPersonStubs(null);
-                        }
-                    } else {
-                        // in OpenMRS 1.9+, get all suitable providers
-                        users = getAllProvidersThatArePersonsAsPersonStubs();
-                    }
-                }
-
-                for (PersonStub personStub : users) {
-
-                    Option option = new Option(personStub.toString(), personStub.getId().toString(), false);
-                    providerUsers.add(option);
-                }
-                providerOptions.addAll(providerUsers);
-
-            }
-
-            // Set default values as appropriate
-            Person defaultProvider = null;
-            Option defProviderOption;
-            if (context.getExistingEncounter() != null) {
-                defaultProvider = context.getExistingEncounter().getProvider();
-                // this is done to avoid default provider being added twice due to that it can be added from the
-                // users = getAllProvidersThatArePersonsAsPersonStubs(); section with selected="false", therefore this can't be caught when
-                // searching whether the options list contains the 'defaultProvider'
-            boolean defaultOptionPresent = false;
-              if(defaultProvider != null){
-                for(Option option: providerOptions){
-                  if(option.getValue().equals(defaultProvider.getId().toString())){
-                      defaultOptionPresent = true;
-                      providerOptions.remove(option);
-                      break;
-                  }
-                }
-              }
-              if(defaultOptionPresent)  {
-                  defProviderOption
-                     = new Option(defaultProvider.getPersonName().getFullName(), defaultProvider.getId().toString(), true);
-                   providerOptions.add(defProviderOption);
-              }
-
-            } else {
-                String defParam = (String) parameters.get("default");
-                if (StringUtils.hasText(defParam)) {
-                    if ("currentuser".equalsIgnoreCase(defParam)) {
-                        defaultProvider = Context.getAuthenticatedUser().getPerson();
-                    } else {
-                        defaultProvider = HtmlFormEntryUtil.getPerson(defParam);
-                    }
-                    if (defaultProvider == null) {
-                        throw new IllegalArgumentException("Invalid default provider specified for encounter: " + defParam);
-                    } else {
-                        defProviderOption
-                                = new Option(defaultProvider.getPersonName().getFullName(), defaultProvider.getId().toString(), true);
-                        for (Option option : providerOptions) {
-                            if (option.getValue().equals(defProviderOption.getValue())) {
-                                providerOptions.remove(option);
-                                break;
-                            }
-                        }
-                        providerOptions.add(defProviderOption);
-                    }
-
+            if(context.getExistingEncounter() != null) {
+                Encounter e = context.getExistingEncounter();
+                Set<EncounterProvider> set = e.getEncounterProviders();
+                Iterator<EncounterProvider> it = set.iterator();
+                if(it.hasNext()) {
+                    providerWidget.setInitialValue(it.next().getProvider());
                 }
             }
-            if (defaultProvider != null) {
-                providerWidget.setInitialValue(new PersonStub(defaultProvider));
-            }
-            Collections.sort(providerOptions,new OptionComparator());
 
-            if (("autocomplete").equals(parameters.get("type"))) {
-                providerWidget.addOption(new Option());
-                if (!providerOptions.isEmpty()) {
-                    providerWidget.setOptions(providerOptions);
-                }
-
-            } else {
-                // if initialValueIsSet=false, no initial/default provider, hence this shows the 'select input' field as first option
-                boolean initialValueIsSet = !(providerWidget.getInitialValue() == null);
-                providerWidget.addOption(new Option
-                        (Context.getMessageSourceService().getMessage("htmlformentry.chooseAProvider"), "", !initialValueIsSet)); // if no initial or default value
-
-                if (!providerOptions.isEmpty()) {
-                    for (Option option : providerOptions) {
-                        providerWidget.addOption(option);
-                    }
-
-                }
-            }
             context.registerWidget(providerWidget);
             context.registerErrorWidget(providerWidget, providerErrorWidget);
         }
@@ -664,7 +529,7 @@ public class EncounterDetailSubmissionElement implements HtmlGeneratorElement, F
         try {
             if (providerWidget != null) {
                 Object value = providerWidget.getValue(context, submission);
-                Person provider = (Person) convertValueToProvider(value);
+                Provider provider = convertValueToProvider(value);
                 if (provider == null)
                     throw new Exception("required");
             }
@@ -704,10 +569,11 @@ public class EncounterDetailSubmissionElement implements HtmlGeneratorElement, F
      * @param value - provider id
      * @return the Provider object of corresponding id
      */
-    private Object convertValueToProvider(Object value) {
+    private Provider convertValueToProvider(Object value) {
         String val = (String) value;
         if (StringUtils.hasText(val)) {
-            return HtmlFormEntryUtil.convertToType(val.trim(), Person.class);
+            ProviderService ps = Context.getProviderService();
+            return ps.getProvider(Integer.valueOf(val));
         }
         return null;
     }
@@ -734,8 +600,15 @@ public class EncounterDetailSubmissionElement implements HtmlGeneratorElement, F
         }
         if (providerWidget != null) {
             Object value = providerWidget.getValue(session.getContext(), submission);
-            Person person = (Person) convertValueToProvider(value);
-            session.getSubmissionActions().getCurrentEncounter().setProvider(person);
+            Provider provider = convertValueToProvider(value);
+            Encounter curEncounter = session.getSubmissionActions().getCurrentEncounter();
+
+            if(curEncounter!=null) {
+                EncounterRole role = Context.getEncounterService().
+                        getEncounterRoleByUuid(EncounterRole.UNKNOWN_ENCOUNTER_ROLE_UUID);
+
+                session.getSubmissionActions().getCurrentEncounter().setProvider(role, provider);
+            }
         }
         if (locationWidget != null) {
             Object value = locationWidget.getValue(session.getContext(), submission);

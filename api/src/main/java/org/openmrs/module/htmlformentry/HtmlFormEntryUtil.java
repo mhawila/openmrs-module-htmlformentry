@@ -1584,7 +1584,7 @@ public class HtmlFormEntryUtil {
 			return providersByRoles != null && providersByRoles.size() > 0;
 		}
 		catch (Exception ex) {
-			return e.getProvider() != null;
+			return !e.getEncounterProviders().isEmpty();
 		}
 	}
 	

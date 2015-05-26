@@ -6,19 +6,9 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.log.CommonsLogLogChute;
-import org.openmrs.Concept;
-import org.openmrs.Encounter;
-import org.openmrs.Form;
-import org.openmrs.Location;
-import org.openmrs.Obs;
-import org.openmrs.Order;
-import org.openmrs.Patient;
-import org.openmrs.PatientIdentifier;
-import org.openmrs.PatientProgram;
-import org.openmrs.Person;
-import org.openmrs.PersonAttribute;
-import org.openmrs.Relationship;
+import org.openmrs.*;
 import org.openmrs.api.ObsService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.htmlformentry.FormEntryContext.Mode;
 import org.openmrs.module.htmlformentry.property.ExitFromCareProperty;
@@ -544,6 +534,12 @@ public class FormEntrySession {
                     e.setForm(form);
                     if (form.getEncounterType() != null)
                         e.setEncounterType(form.getEncounterType());
+                }
+                //Save providers first
+                ProviderService providerService = Context.getProviderService();
+                for(EncounterProvider ep: encounter.getEncounterProviders()){
+                    Provider p = ep.getProvider();
+                    providerService.saveProvider(p);
                 }
                 Context.getEncounterService().saveEncounter(encounter);
             }

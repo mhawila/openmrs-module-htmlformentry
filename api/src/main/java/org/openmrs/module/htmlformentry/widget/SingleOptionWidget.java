@@ -14,7 +14,7 @@ import org.openmrs.module.htmlformentry.FormEntryContext;
 public abstract class SingleOptionWidget implements Widget {
 	
 	private String initialValue;
-	private List<Option> options;
+	private List<Option> options = new ArrayList<Option>();
 	
 	/**
 	 * Default Constructor
