@@ -682,3 +682,51 @@ openmrs.htmlformentry.refresh = function(v) {
 		$j('#' + divId).data("count", 0);
 	$j('#' + string).attr('value', $j('#' + divId).data("count"));
 }
+
+
+function setupProviderAutocomplete(element,src) {
+    var hiddenField = jQuery("#"+element.id+"_hid");
+    var textField = jQuery(element);
+    var select = false;
+
+    var req = { 'searchParam': textField.val()};
+
+    if (hiddenField.length > 0 && textField.length > 0) {
+        textField.autocomplete( {
+            source: function(req, add){
+                //pass request to server
+
+                jQuery.getJSON(location.protocol + '//' + location.host + getContextPath() + '/ws/module/htmlformentry/'
+                + src ,{"searchParam":textField.val()}, function(data) {
+
+                    //create array for response objects
+                    var suggestions = [];
+                    jQuery.each(data,function(i,val){
+                        var item = {};
+                        item.label = val.name + " ("+val.identifier+")";
+                        item.value = val.providerId;
+                        suggestions.push(item);
+                    });
+
+                    if (suggestions.length==0) hiddenField.val("");
+                    add(suggestions);
+                });
+            },
+
+            minLength: 2,
+            select: function(event, ui) {
+                hiddenField.val(ui.item.value);
+                textField.val(ui.item.label);
+                select = true;
+                return false;
+            },
+            close: function(event, ui) {
+                if(!select){
+                    textField.css('color', 'red');
+                    hiddenField.val("ERROR");
+                }
+                select = false;
+            }
+        });
+    }
+}
